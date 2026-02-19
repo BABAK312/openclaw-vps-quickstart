@@ -2,6 +2,10 @@
 
 Безопасная установка OpenClaw на Ubuntu VPS одной командой.
 
+Полный справочник команд:
+- [COMMANDS_RU.md](COMMANDS_RU.md)
+- [COMMANDS_EN.md](COMMANDS_EN.md)
+
 ## Быстрый старт
 
 macOS / Linux:
@@ -45,8 +49,14 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 - `--show-extra-private-keys`: вывести private key прямо в терминал (и в лог тоже; осторожно)
 - `--no-harden-ssh`: пропустить SSH hardening
 - `--ssh-alias <name>`: добавить короткий SSH alias в `~/.ssh/config` (пример: `openclaw-1`)
+- `--dir <PATH>`: использовать конкретную локальную папку quickstart
 - `--no-auto-reboot`: оставить ручной reboot-режим
 - `--reboot-wait-timeout <сек>`: изменить таймаут ожидания reboot (по умолчанию `420`)
+- `--skip-verify`: пропустить финальный шаг `verify.sh --repair`
+
+Пояснение флагов:
+- `FORCE_COLOR=1` принудительно включает цветной вывод при запуске через `curl ... | bash`.
+- Значение alias - это локальное имя-шорткат на твоём компьютере (`openclaw-1`, `openclaw-prod`, `openclaw-91` и т.п.).
 
 Пример:
 

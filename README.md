@@ -6,6 +6,8 @@ Security-first OpenClaw setup for Ubuntu VPS in one command.
 
 - English: [README_EN.md](README_EN.md)
 - Русский: [README_RU.md](README_RU.md)
+- Commands EN: [COMMANDS_EN.md](COMMANDS_EN.md)
+- Команды RU: [COMMANDS_RU.md](COMMANDS_RU.md)
 
 ## Quick Install (latest)
 
@@ -47,8 +49,16 @@ openclaw onboard
 - `--extra-keys 1`: generate and add one extra SSH key for phone/tablet.
 - `--show-extra-private-keys`: print extra private key content in terminal/log (sensitive).
 - `--no-upgrade`: skip `apt upgrade` stage (faster rerun; OpenClaw setup still runs).
+- `--dir <PATH>`: use a specific local quickstart directory.
 - `--ssh-alias <NAME>`: add short SSH alias in local `~/.ssh/config`.
 - `--no-auto-reboot`: disable automatic reboot when reboot-required is detected.
+- `--reboot-wait-timeout <seconds>`: set SSH wait timeout after auto reboot.
+- `--skip-verify`: skip final `verify.sh --repair` step.
+
+Flag notes:
+
+- `FORCE_COLOR=1`: force colored logs even when script is piped from `curl`.
+- `--ssh-alias openclaw-1`: alias name is arbitrary and local. You can use `openclaw-1`, `openclaw-prod`, `openclaw-91`, etc.
 
 ## What You Get
 

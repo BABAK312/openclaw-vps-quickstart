@@ -2,6 +2,10 @@
 
 One-command, security-first OpenClaw deployment on Ubuntu VPS.
 
+Full command reference:
+- [COMMANDS_EN.md](COMMANDS_EN.md)
+- [COMMANDS_RU.md](COMMANDS_RU.md)
+
 ## Quick Start
 
 macOS / Linux:
@@ -45,8 +49,14 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 - `--show-extra-private-keys`: print extra private key text in terminal (also saved in log; use carefully)
 - `--no-harden-ssh`: skip SSH hardening
 - `--ssh-alias <name>`: add short local SSH alias in `~/.ssh/config` (example: `openclaw-1`)
+- `--dir <PATH>`: use specific local quickstart directory
 - `--no-auto-reboot`: keep manual reboot mode
 - `--reboot-wait-timeout <seconds>`: override reboot wait timeout (default `420`)
+- `--skip-verify`: skip final `verify.sh --repair` pass
+
+Flag notes:
+- `FORCE_COLOR=1` forces colored output for piped execution (`curl ... | bash`).
+- Alias value is your local shortcut name, not a server-side identifier (`openclaw-1`, `openclaw-prod`, `openclaw-91` are all valid).
 
 Example:
 
