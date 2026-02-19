@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+
+umask 077
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
@@ -8,13 +10,21 @@ mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/reset-local-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
+on_error() {
+  local line="$1"
+  local code="$2"
+  printf '[ERROR] reset-local-macos.sh failed at line %s (exit %s). Log: %s\n' "$line" "$code" "$LOG_FILE" >&2
+  exit "$code"
+}
+trap 'on_error "$LINENO" "$?"' ERR
+
 usage() {
   cat <<USAGE
 Usage: ./scripts/reset-local-macos.sh [options]
 
 Options:
   --server-host <host>       Remove this host from known_hosts
-  --ssh-key <path>           SSH key path (default: ~/.ssh/id_ed25519)
+  --ssh-key <path>           SSH key path (default: ~/.ssh/openclaw_vps_ed25519)
   --remove-ssh-key           Remove SSH private/public key files
   --remove-brew-tools        Uninstall ansible and ssh-copy-id from Homebrew
   --yes                      Skip confirmation prompt
@@ -32,8 +42,25 @@ warn() {
   printf '[WARN] %s\n' "$*"
 }
 
+fail() {
+  printf '[ERROR] %s\n' "$*" >&2
+  exit 1
+}
+
+require_value() {
+  local opt="$1"
+  local value="${2-}"
+  [[ -n "$value" ]] || fail "Missing value for ${opt}"
+}
+
+validate_host() {
+  local host="$1"
+  [[ "$host" != -* ]] || fail "Invalid --server-host value: $host"
+  [[ "$host" =~ ^[A-Za-z0-9._:-]+$ ]] || fail "Invalid --server-host value: $host"
+}
+
 SERVER_HOST=""
-SSH_KEY="~/.ssh/id_ed25519"
+SSH_KEY="~/.ssh/openclaw_vps_ed25519"
 REMOVE_SSH_KEY="no"
 REMOVE_BREW_TOOLS="no"
 ASSUME_YES="no"
@@ -41,10 +68,12 @@ ASSUME_YES="no"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --server-host)
+      require_value "$1" "${2-}"
       SERVER_HOST="$2"
       shift 2
       ;;
     --ssh-key)
+      require_value "$1" "${2-}"
       SSH_KEY="$2"
       shift 2
       ;;
@@ -65,14 +94,15 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Unknown argument: $1" >&2
-      usage
-      exit 1
+      fail "Unknown argument: $1"
       ;;
   esac
 done
 
 SSH_KEY="${SSH_KEY/#\~/$HOME}"
+if [[ -n "$SERVER_HOST" ]]; then
+  validate_host "$SERVER_HOST"
+fi
 
 cat <<PLAN
 Plan:

@@ -8,7 +8,7 @@ Usage: ./scripts/get-token.sh --host <ip_or_host> [options]
 Options:
   --host <host>              VPS IP or hostname (required)
   --user <user>              SSH user (default: openclaw)
-  --ssh-key <path>           SSH key path (default: ~/.ssh/id_ed25519)
+  --ssh-key <path>           SSH key path (default: ~/.ssh/openclaw_vps_ed25519)
   --ssh-port <port>          SSH port (default: 22)
   -h, --help                 Show help
 USAGE
@@ -16,7 +16,7 @@ USAGE
 
 HOST=""
 USER_NAME="openclaw"
-SSH_KEY="~/.ssh/id_ed25519"
+SSH_KEY="~/.ssh/openclaw_vps_ed25519"
 SSH_PORT="22"
 
 while [[ $# -gt 0 ]]; do

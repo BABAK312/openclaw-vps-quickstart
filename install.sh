@@ -1,134 +1,287 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-# Colors for terminal output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+umask 077
+
+ORIG_STDOUT_IS_TTY=0
+if [[ -t 1 ]]; then
+  ORIG_STDOUT_IS_TTY=1
+fi
+
+LOG_DIR="${TMPDIR:-/tmp}"
+LOG_FILE="${LOG_DIR%/}/openclaw-vps-install-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+on_error() {
+  local line="$1"
+  local code="$2"
+  printf '[ERROR] install.sh failed at line %s (exit %s). Log: %s\n' "$line" "$code" "$LOG_FILE" >&2
+  exit "$code"
+}
+trap 'on_error "$LINENO" "$?"' ERR
 
 usage() {
   cat <<USAGE
-Usage: install.sh [install options] [bootstrap options]
+Usage: curl -fsSL <raw-install-url> | bash -s -- --host <ip_or_host> [options]
 
-Install options:
-  --repo <owner/repo>        GitHub repository slug (default: ivansergeev/openclaw-vps-quickstart)
-  --branch <name>            Branch or tag (default: main)
-  --workdir <path>           Local cache dir (default: ~/.openclaw-vps-quickstart)
+Required:
+  --host <host>              VPS IP or hostname
+
+Options:
+  --repo-url <url>           Git repo URL (default: https://github.com/BABAK312/openclaw-vps-quickstart.git)
+  --dir <path>               Local directory for repo (default: ~/openclaw-vps-quickstart)
+  --initial-user <user>      Initial SSH user for first login (default: root)
+  --root-user <user>         Initial privileged SSH user (default: root)
+  --openclaw-user <user>     OpenClaw service user (default: openclaw)
+  --ssh-key <path>           SSH key path (default: ~/.ssh/openclaw_vps_ed25519)
+  --ssh-port <port>          SSH port (default: 22)
+  --extra-keys <count>       Generate and authorize extra SSH keys (default: 0)
+  --show-extra-private-keys  Print extra private keys to terminal output (dangerous: also saved to log)
+  --no-harden-ssh            Do not change sshd auth settings on VPS
+  --no-upgrade               Skip apt upgrade on VPS
+  --skip-verify              Skip verify --repair step
   -h, --help                 Show help
-
-Bootstrap options are passed through to bootstrap.sh, e.g.:
-  --host <VPS_IP>
-  --ssh-key ~/.ssh/id_ed25519
-  --ssh-port 22
-  --root-user root
-  --openclaw-user openclaw
-  --no-harden-ssh
-  --no-upgrade
-
-Example:
-  curl -fsSL https://raw.githubusercontent.com/ivansergeev/openclaw-vps-quickstart/main/install.sh | bash -s -- --host 1.2.3.4
 USAGE
 }
 
-info() {
-  printf "${CYAN}[INFO]${NC} %s\n" "$*"
+USE_COLOR=0
+if [[ "${FORCE_COLOR:-}" == "1" ]]; then
+  USE_COLOR=1
+elif [[ "$ORIG_STDOUT_IS_TTY" -eq 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != "dumb" ]]; then
+  USE_COLOR=1
+fi
+
+if [[ "$USE_COLOR" -eq 1 ]]; then
+  C_RESET=$'\033[0m'
+  C_INFO=$'\033[1;36m'
+  C_WARN=$'\033[1;33m'
+  C_ERR=$'\033[1;31m'
+  C_STEP=$'\033[1;35m'
+  C_OK=$'\033[1;32m'
+  C_TITLE=$'\033[1;34m'
+else
+  C_RESET=""
+  C_INFO=""
+  C_WARN=""
+  C_ERR=""
+  C_STEP=""
+  C_OK=""
+  C_TITLE=""
+fi
+
+print_banner() {
+  printf '%b\n' "${C_TITLE}========================================${C_RESET}"
+  printf '%b\n' "${C_TITLE} OpenClaw VPS Quickstart Installer${C_RESET}"
+  printf '%b\n' "${C_TITLE} Версия: локальный запуск${C_RESET}"
+  printf '%b\n' "${C_TITLE}========================================${C_RESET}"
 }
 
-ok() {
-  printf "${GREEN}[OK]${NC} %s\n" "$*"
+info() { printf '%b[INFO]%b %s\n' "$C_INFO" "$C_RESET" "$*"; }
+warn() { printf '%b[WARN]%b %s\n' "$C_WARN" "$C_RESET" "$*"; }
+fail() { printf '%b[ERROR]%b %s\n' "$C_ERR" "$C_RESET" "$*" >&2; exit 1; }
+step() { printf '%b[STEP %s/%s]%b %s\n' "$C_STEP" "$1" "$2" "$C_RESET" "$3"; }
+ok() { printf '%b[OK]%b %s\n' "$C_OK" "$C_RESET" "$*"; }
+
+require_value() {
+  local opt="$1"
+  local value="${2-}"
+  [[ -n "$value" ]] || fail "Missing value for ${opt}"
 }
 
-fail() {
-  printf "${RED}[ERROR]${NC} %s\n" "$*" >&2
-  exit 1
+validate_host() {
+  local host="$1"
+  [[ -n "$host" ]] || fail "--host is required"
+  [[ "$host" != -* ]] || fail "Invalid --host value: $host"
+  [[ "$host" =~ ^[A-Za-z0-9._:-]+$ ]] || fail "Invalid --host value: $host"
 }
 
-REPO="${OPENCLAW_QUICKSTART_REPO:-ivansergeev/openclaw-vps-quickstart}"
-BRANCH="${OPENCLAW_QUICKSTART_BRANCH:-main}"
-WORKDIR="${OPENCLAW_QUICKSTART_WORKDIR:-$HOME/.openclaw-vps-quickstart}"
-FORWARD_ARGS=()
+validate_user() {
+  local user="$1"
+  local opt_name="$2"
+  [[ "$user" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "Invalid ${opt_name} value: $user"
+}
+
+validate_port() {
+  local port="$1"
+  [[ "$port" =~ ^[0-9]+$ ]] || fail "Invalid --ssh-port value: $port"
+  ((port >= 1 && port <= 65535)) || fail "Invalid --ssh-port value: $port"
+}
+
+validate_count() {
+  local value="$1"
+  local opt_name="$2"
+  [[ "$value" =~ ^[0-9]+$ ]] || fail "Invalid ${opt_name} value: $value"
+}
+
+HOST=""
+REPO_URL="https://github.com/BABAK312/openclaw-vps-quickstart.git"
+TARGET_DIR="$HOME/openclaw-vps-quickstart"
+ROOT_USER="root"
+OPENCLAW_USER="openclaw"
+SSH_KEY="$HOME/.ssh/openclaw_vps_ed25519"
+SSH_PORT="22"
+HARDEN_SSH="yes"
+UPGRADE_SYSTEM="yes"
+SKIP_VERIFY="no"
+EXTRA_KEYS="0"
+SHOW_EXTRA_PRIVATE_KEYS="no"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --repo)
-      REPO="$2"
-      shift 2
-      ;;
-    --branch)
-      BRANCH="$2"
-      shift 2
-      ;;
-    --workdir)
-      WORKDIR="$2"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      FORWARD_ARGS+=("$1")
-      shift
-      ;;
+    --host) require_value "$1" "${2-}"; HOST="$2"; shift 2 ;;
+    --repo-url) require_value "$1" "${2-}"; REPO_URL="$2"; shift 2 ;;
+    --dir) require_value "$1" "${2-}"; TARGET_DIR="$2"; shift 2 ;;
+    --initial-user) require_value "$1" "${2-}"; ROOT_USER="$2"; shift 2 ;;
+    --root-user) require_value "$1" "${2-}"; ROOT_USER="$2"; shift 2 ;;
+    --openclaw-user) require_value "$1" "${2-}"; OPENCLAW_USER="$2"; shift 2 ;;
+    --ssh-key) require_value "$1" "${2-}"; SSH_KEY="${2/#\~/$HOME}"; shift 2 ;;
+    --ssh-port) require_value "$1" "${2-}"; SSH_PORT="$2"; shift 2 ;;
+    --extra-keys) require_value "$1" "${2-}"; EXTRA_KEYS="$2"; shift 2 ;;
+    --show-extra-private-keys) SHOW_EXTRA_PRIVATE_KEYS="yes"; shift 1 ;;
+    --no-harden-ssh) HARDEN_SSH="no"; shift 1 ;;
+    --no-upgrade) UPGRADE_SYSTEM="no"; shift 1 ;;
+    --skip-verify) SKIP_VERIFY="yes"; shift 1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) fail "Unknown argument: $1" ;;
   esac
 done
 
-if [[ -n "${SSH_CONNECTION:-}" ]]; then
-  fail "Run install.sh from your local terminal, not inside VPS shell"
+validate_host "$HOST"
+validate_user "$ROOT_USER" "--initial-user/--root-user"
+validate_user "$OPENCLAW_USER" "--openclaw-user"
+validate_port "$SSH_PORT"
+validate_count "$EXTRA_KEYS" "--extra-keys"
+[[ -z "${SSH_CONNECTION:-}" ]] || fail "Run this from local terminal, not from inside SSH session."
+
+print_banner
+info "Лог установки: $LOG_FILE"
+
+step 1 6 "Проверка локальных зависимостей"
+command -v bash >/dev/null 2>&1 || fail "bash is required"
+command -v tar >/dev/null 2>&1 || fail "tar is required"
+command -v curl >/dev/null 2>&1 || fail "curl is required"
+
+REMOTE_CHECK_OPTS=(
+  -p "$SSH_PORT"
+  -i "$SSH_KEY"
+  -o IdentitiesOnly=yes
+  -o StrictHostKeyChecking=accept-new
+  -o ConnectTimeout=20
+)
+
+# Reinstalled VPS on same IP often causes known_hosts mismatch; refresh entry.
+step 2 6 "Обновление known_hosts для целевого сервера"
+ssh-keygen -R "$HOST" >/dev/null 2>&1 || true
+if [[ "$SSH_PORT" != "22" ]]; then
+  ssh-keygen -R "[$HOST]:$SSH_PORT" >/dev/null 2>&1 || true
 fi
 
-require_cmd() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    fail "Missing command: $1"
+download_repo_without_git() {
+  local url="$1"
+  local target="$2"
+  local owner repo tarball tmpdir
+
+  if [[ "$url" =~ ^https://github\.com/([^/]+)/([^/.]+)(\.git)?$ ]]; then
+    owner="${BASH_REMATCH[1]}"
+    repo="${BASH_REMATCH[2]}"
+  else
+    fail "git is not installed and repo URL is not a supported GitHub HTTPS URL: $url"
   fi
+
+  tarball="https://github.com/${owner}/${repo}/archive/refs/heads/main.tar.gz"
+  tmpdir="$(mktemp -d)"
+
+  info "git not found; downloading source archive $tarball"
+  curl -fsSL "$tarball" -o "$tmpdir/repo.tar.gz"
+  tar -xzf "$tmpdir/repo.tar.gz" -C "$tmpdir"
+
+  if [[ ! -d "$tmpdir/${repo}-main" ]]; then
+    rm -rf "$tmpdir"
+    fail "Unexpected archive layout while downloading $tarball"
+  fi
+
+  mv "$tmpdir/${repo}-main" "$target"
+  rm -rf "$tmpdir"
 }
 
-require_cmd curl
-require_cmd tar
-require_cmd bash
-
-REPO_NAME="${REPO##*/}"
-WORKDIR="${WORKDIR/#\~/$HOME}"
-TARGET_DIR="$WORKDIR/$REPO_NAME"
-TMP_DIR="$(mktemp -d)"
-ARCHIVE_URL="https://codeload.github.com/${REPO}/tar.gz/refs/heads/${BRANCH}"
-
-cleanup() {
-  rm -rf "$TMP_DIR"
-}
-trap cleanup EXIT
-
-mkdir -p "$WORKDIR"
-
-printf '\n'
-printf '%s\n' "${CYAN}${BOLD}╔═══════════════════════════════════════════════════════════════╗${NC}"
-printf '%s\n' "${CYAN}${BOLD}║        OpenClaw VPS Quickstart Installer                   ║${NC}"
-printf '%s\n' "${CYAN}${BOLD}╚═══════════════════════════════════════════════════════════════╝${NC}"
-printf '\n'
-
-info "Downloading ${REPO}@${BRANCH}"
-curl -fsSL "$ARCHIVE_URL" -o "$TMP_DIR/repo.tgz"
-
-tar -xzf "$TMP_DIR/repo.tgz" -C "$TMP_DIR"
-
-SRC_DIR="$TMP_DIR/${REPO_NAME}-${BRANCH}"
-if [[ ! -d "$SRC_DIR" ]]; then
-  SRC_DIR="$(find "$TMP_DIR" -maxdepth 1 -type d -name "${REPO_NAME}-*" | head -n 1)"
+if [[ -d "$TARGET_DIR" && ! -d "$TARGET_DIR/.git" ]]; then
+  step 3 6 "Используем существующую рабочую папку"
+  if [[ -f "$TARGET_DIR/bootstrap.sh" && -f "$TARGET_DIR/verify.sh" ]]; then
+    warn "Using existing non-git directory: $TARGET_DIR"
+  else
+    fail "Directory exists but does not look like quickstart repo: $TARGET_DIR"
+  fi
+elif [[ -d "$TARGET_DIR/.git" ]]; then
+  step 3 6 "Обновляем локальный репозиторий quickstart"
+  if command -v git >/dev/null 2>&1; then
+    info "Updating existing repo in $TARGET_DIR"
+    if ! git -C "$TARGET_DIR" pull --ff-only; then
+      fail "Failed to update existing repo in $TARGET_DIR. If you changed files manually, use a clean folder via --dir <path>."
+    fi
+  else
+    warn "git not found; using existing clone as-is: $TARGET_DIR"
+  fi
+else
+  step 3 6 "Скачиваем quickstart репозиторий"
+  if command -v git >/dev/null 2>&1; then
+    info "Cloning $REPO_URL -> $TARGET_DIR"
+    git clone --depth 1 "$REPO_URL" "$TARGET_DIR"
+  else
+    download_repo_without_git "$REPO_URL" "$TARGET_DIR"
+  fi
 fi
 
-if [[ ! -d "$SRC_DIR" ]]; then
-  fail "Cannot locate extracted repository content"
+chmod +x "$TARGET_DIR/bootstrap.sh" "$TARGET_DIR/verify.sh" "$TARGET_DIR"/scripts/*.sh || true
+
+BOOT_ARGS=(
+  --host "$HOST"
+  --initial-user "$ROOT_USER"
+  --openclaw-user "$OPENCLAW_USER"
+  --ssh-key "$SSH_KEY"
+  --ssh-port "$SSH_PORT"
+)
+
+if [[ "$HARDEN_SSH" == "no" ]]; then
+  BOOT_ARGS+=(--no-harden-ssh)
+fi
+if [[ "$UPGRADE_SYSTEM" == "no" ]]; then
+  BOOT_ARGS+=(--no-upgrade)
+fi
+if [[ "$EXTRA_KEYS" != "0" ]]; then
+  BOOT_ARGS+=(--extra-keys "$EXTRA_KEYS")
+fi
+if [[ "$SHOW_EXTRA_PRIVATE_KEYS" == "yes" ]]; then
+  BOOT_ARGS+=(--show-extra-private-keys)
 fi
 
-rm -rf "$TARGET_DIR.tmp"
-mkdir -p "$TARGET_DIR.tmp"
-cp -R "$SRC_DIR"/. "$TARGET_DIR.tmp"/
-rm -rf "$TARGET_DIR"
-mv "$TARGET_DIR.tmp" "$TARGET_DIR"
+step 4 6 "Запуск bootstrap на VPS"
+info "Running bootstrap"
+info "When prompted by ssh-copy-id, enter VPS password for initial SSH user from provider panel."
+bash "$TARGET_DIR/bootstrap.sh" "${BOOT_ARGS[@]}"
 
-ok "Project ready at: $TARGET_DIR"
+if [[ "$SKIP_VERIFY" != "yes" ]]; then
+  step 5 6 "Пост-проверка и авто-ремонт verify --repair"
+  info "Running verify --repair"
+  bash "$TARGET_DIR/verify.sh" \
+    --host "$HOST" \
+    --initial-user "$ROOT_USER" \
+    --openclaw-user "$OPENCLAW_USER" \
+    --ssh-key "$SSH_KEY" \
+    --ssh-port "$SSH_PORT" \
+    --repair
+fi
 
-info "Running bootstrap..."
-exec bash "$TARGET_DIR/bootstrap.sh" "${FORWARD_ARGS[@]}"
+step 6 6 "Финальные рекомендации"
+if ssh "${REMOTE_CHECK_OPTS[@]}" "${OPENCLAW_USER}@${HOST}" "test -f /var/run/reboot-required" >/dev/null 2>&1; then
+  warn "VPS reports reboot-required after system package updates."
+  warn "Run once to finalize kernel/system updates:"
+  printf '   ssh -i %s -p %s %s@%s "sudo reboot || reboot"\n' "$SSH_KEY" "$SSH_PORT" "$ROOT_USER" "$HOST"
+fi
+
+printf '\nDone.\n'
+ok "Установка завершена."
+printf '1) Open tunnel:\n'
+printf '   ssh -i %s -N -L 18789:127.0.0.1:18789 %s@%s\n' "$SSH_KEY" "$OPENCLAW_USER" "$HOST"
+printf '2) Open dashboard in private window: http://127.0.0.1:18789\n'
+printf '3) If needed run on VPS: ~/.openclaw/bin/openclaw onboard\n'
+printf 'Install log: %s\n' "$LOG_FILE"
