@@ -1,5 +1,42 @@
 # Release Notes
 
+## v1.0.31
+
+### Reliability fixes (installer/bootstrap/verify)
+- Fixed transient SSH disconnect failures (`exit 255`) during post-bootstrap steps:
+  - extra SSH key authorization (`--extra-keys`)
+  - post-install status checks (`linger`, `gateway status`, permissions, hardening checks, token fetch)
+- Added minimal SSH retry policy for transient transport errors only:
+  - retry count: 3
+  - retries only for `ssh` exit `255`
+  - no retries for functional/auth/config errors
+- Isolated long remote bootstrap execution from SSH multiplex socket state by running that step with `ControlMaster=no`.
+- Kept OpenClaw CLI install retry minimal (single retry) for temporary upstream/network failures.
+
+### Verify improvements
+- Added the same minimal transient-SSH retry behavior to `verify.sh` (including `--repair` path), so diagnostics are stable on flaky links.
+
+### Helper scripts hardening
+- Added strict argument validation to:
+  - `scripts/connect.sh`
+  - `scripts/tunnel.sh`
+  - `scripts/get-token.sh`
+- Invalid/missing option values now fail fast with clear messages.
+
+### Docs/version sync
+- Bumped all public install snippets to `v1.0.31`:
+  - `README.md`
+  - `README_EN.md`
+  - `README_RU.md`
+  - `LANDING.md`
+
+### Validation run
+- Full install flow executed on Ubuntu 24.04 VPS from macOS:
+  - `install.sh` (with `--extra-keys 1`)
+  - `verify.sh` / `verify.sh --repair`
+  - `scripts/smoke-test.sh` (7/7 pass)
+- All repository shell scripts pass `bash -n`.
+
 ## v1.0.30
 
 ### Docs/version sync

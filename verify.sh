@@ -173,6 +173,7 @@ SSH_OPTS=(
   -i "$SSH_KEY"
   -o IdentitiesOnly=yes
   -o StrictHostKeyChecking=accept-new
+  -o ConnectionAttempts=3
   -o ConnectTimeout=20
   -o ServerAliveInterval=20
   -o ServerAliveCountMax=3
@@ -180,6 +181,37 @@ SSH_OPTS=(
   -o ControlPersist=10m
   -o ControlPath="$CONTROL_PATH"
 )
+SSH_OPTS_NO_MUX=("${SSH_OPTS[@]}" -o ControlMaster=no -o ControlPath=none)
+SSH_RETRY_ATTEMPTS=3
+SSH_RETRY_BASE_DELAY=4
+
+ssh_retry_exec() {
+  local conn="$1"
+  local remote_cmd="$2"
+  local attempt rc delay
+  for ((attempt = 1; attempt <= SSH_RETRY_ATTEMPTS; attempt++)); do
+    if ssh "${SSH_OPTS_NO_MUX[@]}" -o BatchMode=yes "$conn" "$remote_cmd"; then
+      return 0
+    fi
+    rc=$?
+    if ((attempt >= SSH_RETRY_ATTEMPTS || rc != 255)); then
+      return "$rc"
+    fi
+    delay=$((attempt * SSH_RETRY_BASE_DELAY))
+    printf '%b[INFO]%b SSH transient error to %s (exit %s), retry %s/%s in %ss...\n' \
+      "$C_INFO" "$C_RESET" "$conn" "$rc" "$attempt" "$SSH_RETRY_ATTEMPTS" "$delay"
+    sleep "$delay"
+  done
+  return 1
+}
+
+ssh_root_retry() {
+  ssh_retry_exec "$ROOT_CONN" "$1"
+}
+
+ssh_openclaw_retry() {
+  ssh_retry_exec "$OPENCLAW_CONN" "$1"
+}
 
 cleanup() {
   ssh "${SSH_OPTS[@]}" -O exit "$ROOT_CONN" >/dev/null 2>&1 || true
@@ -188,32 +220,32 @@ cleanup() {
 trap cleanup EXIT
 
 info "== Linger =="
-ssh "${SSH_OPTS[@]}" "$ROOT_CONN" "loginctl show-user ${OPENCLAW_USER} -p Linger"
+ssh_root_retry "loginctl show-user ${OPENCLAW_USER} -p Linger"
 
 info "== OpenClaw user =="
-ssh "${SSH_OPTS[@]}" "$ROOT_CONN" "id ${OPENCLAW_USER}"
+ssh_root_retry "id ${OPENCLAW_USER}"
 
 info "== Server reboot-required status =="
-ssh "${SSH_OPTS[@]}" "$ROOT_CONN" "if [[ -f /var/run/reboot-required ]]; then echo 'reboot-required: yes'; else echo 'reboot-required: no'; fi"
+ssh_root_retry "if [[ -f /var/run/reboot-required ]]; then echo 'reboot-required: yes'; else echo 'reboot-required: no'; fi"
 
 info "== Host hardening baseline (UFW/Fail2ban/Auto-updates) =="
-ssh "${SSH_OPTS[@]}" "$ROOT_CONN" "echo 'UFW:'; ufw status verbose | sed -n '1,12p'; echo; echo 'Fail2ban:'; systemctl is-enabled fail2ban 2>/dev/null || true; systemctl is-active fail2ban 2>/dev/null || true; fail2ban-client status sshd 2>/dev/null || true; echo; echo 'Unattended upgrades:'; systemctl is-enabled unattended-upgrades 2>/dev/null || true"
+ssh_root_retry "echo 'UFW:'; ufw status verbose | sed -n '1,12p'; echo; echo 'Fail2ban:'; systemctl is-enabled fail2ban 2>/dev/null || true; systemctl is-active fail2ban 2>/dev/null || true; fail2ban-client status sshd 2>/dev/null || true; echo; echo 'Unattended upgrades:'; systemctl is-enabled unattended-upgrades 2>/dev/null || true"
 
 info "== Gateway/Status =="
-ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" "export XDG_RUNTIME_DIR=/run/user/\$(id -u); export DBUS_SESSION_BUS_ADDRESS=unix:path=\$XDG_RUNTIME_DIR/bus; ~/.openclaw/bin/openclaw gateway status || true; ~/.openclaw/bin/openclaw status || true"
+ssh_openclaw_retry "export XDG_RUNTIME_DIR=/run/user/\$(id -u); export DBUS_SESSION_BUS_ADDRESS=unix:path=\$XDG_RUNTIME_DIR/bus; ~/.openclaw/bin/openclaw gateway status || true; ~/.openclaw/bin/openclaw status || true"
 
 info "== Permissions =="
-ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" "stat -c '%a %n' ~/.openclaw ~/.openclaw/credentials ~/.openclaw/agents/main/sessions 2>/dev/null || true"
+ssh_openclaw_retry "stat -c '%a %n' ~/.openclaw ~/.openclaw/credentials ~/.openclaw/agents/main/sessions 2>/dev/null || true"
 
 info "== Hardened restriction traces in active config =="
-ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" "grep -niE 'squid|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|exec-approvals\\.json|tools\\.yaml|allowlist\\.txt|openclaw-squid|openclaw-litellm' ~/.openclaw/openclaw.json ~/.config/systemd/user/openclaw-gateway.service 2>/dev/null || true"
+ssh_openclaw_retry "grep -niE 'squid|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|exec-approvals\\.json|tools\\.yaml|allowlist\\.txt|openclaw-squid|openclaw-litellm' ~/.openclaw/openclaw.json ~/.config/systemd/user/openclaw-gateway.service 2>/dev/null || true"
 
 info "== Legacy hardened containers check =="
-ssh "${SSH_OPTS[@]}" "$ROOT_CONN" "podman ps --format '{{.Names}}' 2>/dev/null | grep -E 'openclaw-squid|openclaw-litellm|openclaw-agent' || true"
+ssh_root_retry "podman ps --format '{{.Names}}' 2>/dev/null | grep -E 'openclaw-squid|openclaw-litellm|openclaw-agent' || true"
 
 if [[ "$REPAIR" == "yes" ]]; then
   info "== Repair mode =="
-  ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" "bash -s" <<'REMOTE_REPAIR'
+  ssh "${SSH_OPTS_NO_MUX[@]}" -o BatchMode=yes "$OPENCLAW_CONN" "bash -s" <<'REMOTE_REPAIR'
 set -euo pipefail
 
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"

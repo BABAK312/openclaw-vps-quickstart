@@ -241,6 +241,7 @@ SSH_OPTS=(
   -i "$SSH_KEY"
   -o IdentitiesOnly=yes
   -o StrictHostKeyChecking=accept-new
+  -o ConnectionAttempts=3
   -o ConnectTimeout=20
   -o ServerAliveInterval=20
   -o ServerAliveCountMax=3
@@ -248,12 +249,16 @@ SSH_OPTS=(
   -o ControlPersist=10m
   -o ControlPath="$CONTROL_PATH"
 )
+SSH_OPTS_NO_MUX=("${SSH_OPTS[@]}" -o ControlMaster=no -o ControlPath=none)
 PUBKEY_ONLY_OPTS=(
   -o PreferredAuthentications=publickey
   -o PasswordAuthentication=no
   -o KbdInteractiveAuthentication=no
 )
 ROOT_EXEC_OPTS=("${SSH_OPTS[@]}")
+ROOT_EXEC_OPTS_NO_MUX=("${ROOT_EXEC_OPTS[@]}" -o ControlMaster=no -o ControlPath=none)
+SSH_RETRY_ATTEMPTS=3
+SSH_RETRY_BASE_DELAY=4
 
 can_login_key_batch() {
   ssh "${SSH_OPTS[@]}" "${PUBKEY_ONLY_OPTS[@]}" -o BatchMode=yes "$ROOT_CONN" 'echo key-auth-ok' >/dev/null 2>&1
@@ -261,6 +266,99 @@ can_login_key_batch() {
 
 can_login_key_interactive() {
   ssh "${SSH_OPTS[@]}" "${PUBKEY_ONLY_OPTS[@]}" "$ROOT_CONN" 'echo key-auth-ok' >/dev/null
+}
+
+ssh_root_retry() {
+  local remote_cmd="$1"
+  local attempt rc delay
+  for ((attempt = 1; attempt <= SSH_RETRY_ATTEMPTS; attempt++)); do
+    if ssh "${ROOT_EXEC_OPTS_NO_MUX[@]}" -o BatchMode=yes "$ROOT_CONN" "$remote_cmd"; then
+      return 0
+    fi
+    rc=$?
+    if ((attempt >= SSH_RETRY_ATTEMPTS || rc != 255)); then
+      return "$rc"
+    fi
+    delay=$((attempt * SSH_RETRY_BASE_DELAY))
+    warn "SSH to ${ROOT_CONN} failed (exit ${rc}), retry ${attempt}/${SSH_RETRY_ATTEMPTS} in ${delay}s..."
+    sleep "$delay"
+  done
+  return 1
+}
+
+ssh_root_capture_retry() {
+  local remote_cmd="$1"
+  local attempt rc delay output=""
+  for ((attempt = 1; attempt <= SSH_RETRY_ATTEMPTS; attempt++)); do
+    if output="$(ssh "${ROOT_EXEC_OPTS_NO_MUX[@]}" -o BatchMode=yes "$ROOT_CONN" "$remote_cmd" 2>/dev/null)"; then
+      printf '%s' "$output"
+      return 0
+    fi
+    rc=$?
+    if ((attempt >= SSH_RETRY_ATTEMPTS || rc != 255)); then
+      return "$rc"
+    fi
+    delay=$((attempt * SSH_RETRY_BASE_DELAY))
+    warn "SSH to ${ROOT_CONN} failed (exit ${rc}), retry ${attempt}/${SSH_RETRY_ATTEMPTS} in ${delay}s..." >&2
+    sleep "$delay"
+  done
+  return 1
+}
+
+ssh_openclaw_retry() {
+  local remote_cmd="$1"
+  local attempt rc delay
+  for ((attempt = 1; attempt <= SSH_RETRY_ATTEMPTS; attempt++)); do
+    if ssh "${SSH_OPTS_NO_MUX[@]}" -o BatchMode=yes "$OPENCLAW_CONN" "$remote_cmd"; then
+      return 0
+    fi
+    rc=$?
+    if ((attempt >= SSH_RETRY_ATTEMPTS || rc != 255)); then
+      return "$rc"
+    fi
+    delay=$((attempt * SSH_RETRY_BASE_DELAY))
+    warn "SSH to ${OPENCLAW_CONN} failed (exit ${rc}), retry ${attempt}/${SSH_RETRY_ATTEMPTS} in ${delay}s..."
+    sleep "$delay"
+  done
+  return 1
+}
+
+ssh_openclaw_capture_retry() {
+  local remote_cmd="$1"
+  local attempt rc delay output=""
+  for ((attempt = 1; attempt <= SSH_RETRY_ATTEMPTS; attempt++)); do
+    if output="$(ssh "${SSH_OPTS_NO_MUX[@]}" -o BatchMode=yes "$OPENCLAW_CONN" "$remote_cmd" 2>/dev/null)"; then
+      printf '%s' "$output"
+      return 0
+    fi
+    rc=$?
+    if ((attempt >= SSH_RETRY_ATTEMPTS || rc != 255)); then
+      return "$rc"
+    fi
+    delay=$((attempt * SSH_RETRY_BASE_DELAY))
+    warn "SSH to ${OPENCLAW_CONN} failed (exit ${rc}), retry ${attempt}/${SSH_RETRY_ATTEMPTS} in ${delay}s..." >&2
+    sleep "$delay"
+  done
+  return 1
+}
+
+ssh_openclaw_pipe_retry() {
+  local stdin_file="$1"
+  local remote_cmd="$2"
+  local attempt rc delay
+  for ((attempt = 1; attempt <= SSH_RETRY_ATTEMPTS; attempt++)); do
+    if ssh "${SSH_OPTS_NO_MUX[@]}" -o BatchMode=yes "$OPENCLAW_CONN" "$remote_cmd" < "$stdin_file"; then
+      return 0
+    fi
+    rc=$?
+    if ((attempt >= SSH_RETRY_ATTEMPTS || rc != 255)); then
+      return "$rc"
+    fi
+    delay=$((attempt * SSH_RETRY_BASE_DELAY))
+    warn "SSH to ${OPENCLAW_CONN} failed while streaming input (exit ${rc}), retry ${attempt}/${SSH_RETRY_ATTEMPTS} in ${delay}s..."
+    sleep "$delay"
+  done
+  return 1
 }
 
 cleanup() {
@@ -327,8 +425,9 @@ authorize_extra_keys() {
   ((EXTRA_KEYS > 0)) || return 0
 
   for pub_path in "${EXTRA_PUBLIC_KEYS[@]}"; do
-    cat "$pub_path" | ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" \
-      "umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; cat >> ~/.ssh/authorized_keys; sort -u ~/.ssh/authorized_keys -o ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys"
+    if ! ssh_openclaw_pipe_retry "$pub_path" "umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; cat >> ~/.ssh/authorized_keys; sort -u ~/.ssh/authorized_keys -o ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys"; then
+      fail "Failed to add extra key on ${OPENCLAW_CONN}. Retry manually: cat \"$pub_path\" | ssh -i \"$SSH_KEY\" -p \"$SSH_PORT\" \"$OPENCLAW_CONN\" \"umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; cat >> ~/.ssh/authorized_keys; sort -u ~/.ssh/authorized_keys -o ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys\""
+    fi
   done
 }
 
@@ -432,19 +531,19 @@ else
   info "No extra keys requested (--extra-keys 0)."
 fi
 
-REMOTE_UID="$(ssh "${ROOT_EXEC_OPTS[@]}" "$ROOT_CONN" "id -u" | tr -d '[:space:]')"
+REMOTE_UID="$(ssh_root_capture_retry "id -u" | tr -d '[:space:]')"
 [[ "$REMOTE_UID" =~ ^[0-9]+$ ]] || fail "Failed to detect remote uid for ${ROOT_CONN}"
 REMOTE_BOOT_CMD="OPENCLAW_USER='$OPENCLAW_USER' HARDEN_SSH='$HARDEN_SSH' UPGRADE_SYSTEM='$UPGRADE_SYSTEM' SSH_PORT='$SSH_PORT' bash -s"
 if [[ "$REMOTE_UID" != "0" ]]; then
   info "Initial SSH user is non-root (uid=${REMOTE_UID}); checking passwordless sudo"
-  if ! ssh "${ROOT_EXEC_OPTS[@]}" "$ROOT_CONN" "sudo -n true" >/dev/null 2>&1; then
+  if ! ssh_root_retry "sudo -n true" >/dev/null 2>&1; then
     fail "Initial SSH user ${ROOT_CONN} requires interactive sudo password. Use root for bootstrap or configure passwordless sudo."
   fi
   REMOTE_BOOT_CMD="sudo -n OPENCLAW_USER='$OPENCLAW_USER' HARDEN_SSH='$HARDEN_SSH' UPGRADE_SYSTEM='$UPGRADE_SYSTEM' SSH_PORT='$SSH_PORT' bash -s"
 fi
 
-step 3 10 "Удалённая подготовка сервера и установка OpenClaw"
-ssh "${ROOT_EXEC_OPTS[@]}" "$ROOT_CONN" "$REMOTE_BOOT_CMD" <<'REMOTE'
+run_remote_bootstrap_once() {
+ssh "${ROOT_EXEC_OPTS_NO_MUX[@]}" "$ROOT_CONN" "$REMOTE_BOOT_CMD" <<'REMOTE'
 set -euo pipefail
 
 OPENCLAW_USER="${OPENCLAW_USER:-openclaw}"
@@ -564,6 +663,7 @@ install_or_update_openclaw() {
   local npm_bin=""
   local current=""
   local latest=""
+  local install_attempt=""
 
   if [[ -x "$occ" ]]; then
     current="$("$occ" --version 2>/dev/null | head -n1 | tr -d '[:space:]' || true)"
@@ -589,7 +689,16 @@ install_or_update_openclaw() {
     echo "Installing OpenClaw (latest)..."
   fi
 
-  curl -fsSL --proto '=https' --tlsv1.2 https://openclaw.ai/install-cli.sh | bash
+  for install_attempt in 1 2; do
+    if curl -fsSL --proto '=https' --tlsv1.2 https://openclaw.ai/install-cli.sh | bash; then
+      return 0
+    fi
+    if [[ "$install_attempt" -ge 2 ]]; then
+      return 1
+    fi
+    echo "[WARN] OpenClaw install script failed; retrying once in 3s..." >&2
+    sleep 3
+  done
 }
 
 install_or_update_openclaw
@@ -615,12 +724,13 @@ EOF
 
 $OCC config set gateway.mode local
 $OCC config set gateway.bind loopback
-$OCC doctor --fix --yes --non-interactive || true
 
 mkdir -p "$HOME/.openclaw/credentials" "$HOME/.openclaw/agents/main/sessions"
 chmod 700 "$HOME/.openclaw" || true
 chmod 700 "$HOME/.openclaw/credentials" || true
 chmod 700 "$HOME/.openclaw/agents" "$HOME/.openclaw/agents/main" "$HOME/.openclaw/agents/main/sessions" || true
+
+$OCC doctor --fix --yes --non-interactive || true
 
 if ! $OCC gateway install --force; then
   echo "[WARN] gateway install failed on first try; retrying..." >&2
@@ -656,6 +766,26 @@ chmod 700 "$HOME/.openclaw" "$HOME/.openclaw/credentials" || true
 chmod 700 "$HOME/.openclaw/agents" "$HOME/.openclaw/agents/main" "$HOME/.openclaw/agents/main/sessions" || true
 SU_SCRIPT
 REMOTE
+}
+
+step 3 10 "Удалённая подготовка сервера и установка OpenClaw"
+REMOTE_ATTEMPT=1
+REMOTE_ATTEMPT_MAX=2
+while true; do
+  if run_remote_bootstrap_once; then
+    break
+  fi
+  REMOTE_RC=$?
+  if (( REMOTE_ATTEMPT >= REMOTE_ATTEMPT_MAX )); then
+    fail "Remote bootstrap failed after ${REMOTE_ATTEMPT} attempt(s) with exit ${REMOTE_RC}."
+  fi
+  if [[ "$REMOTE_RC" != "255" ]]; then
+    fail "Remote bootstrap failed with non-transient exit ${REMOTE_RC}. Retry was skipped by policy."
+  fi
+  warn "SSH connection dropped during remote bootstrap (exit 255). Retrying once after short wait..."
+  sleep 6
+  ((REMOTE_ATTEMPT++))
+done
 
 step 4 10 "Дополнительные SSH-ключи для устройств"
 if ((EXTRA_KEYS > 0)); then
@@ -667,25 +797,25 @@ else
 fi
 
 step 5 10 "Проверка linger для user-systemd"
-ssh "${ROOT_EXEC_OPTS[@]}" "$ROOT_CONN" "loginctl show-user $OPENCLAW_USER -p Linger"
+ssh_root_retry "loginctl show-user $OPENCLAW_USER -p Linger"
 
 step 6 10 "Проверка статуса OpenClaw gateway"
-ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" "export XDG_RUNTIME_DIR=/run/user/\$(id -u); export DBUS_SESSION_BUS_ADDRESS=unix:path=\$XDG_RUNTIME_DIR/bus; ~/.openclaw/bin/openclaw gateway status || true; ~/.openclaw/bin/openclaw status || true"
+ssh_openclaw_retry "export XDG_RUNTIME_DIR=/run/user/\$(id -u); export DBUS_SESSION_BUS_ADDRESS=unix:path=\$XDG_RUNTIME_DIR/bus; ~/.openclaw/bin/openclaw gateway status || true; ~/.openclaw/bin/openclaw status || true"
 
 step 7 10 "Проверка прав доступа на ~/.openclaw"
-ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" "stat -c '%a %n' ~/.openclaw ~/.openclaw/credentials ~/.openclaw/agents/main/sessions"
+ssh_openclaw_retry "stat -c '%a %n' ~/.openclaw ~/.openclaw/credentials ~/.openclaw/agents/main/sessions"
 
 step 8 10 "Проверка host hardening (UFW/Fail2ban/Auto-updates)"
-ssh "${ROOT_EXEC_OPTS[@]}" "$ROOT_CONN" "echo 'UFW:'; ufw status verbose | sed -n '1,12p'; echo; echo 'Fail2ban:'; systemctl is-enabled fail2ban 2>/dev/null || true; systemctl is-active fail2ban 2>/dev/null || true; fail2ban-client status sshd 2>/dev/null || true; echo; echo 'Unattended upgrades:'; systemctl is-enabled unattended-upgrades 2>/dev/null || true"
+ssh_root_retry "echo 'UFW:'; ufw status verbose | sed -n '1,12p'; echo; echo 'Fail2ban:'; systemctl is-enabled fail2ban 2>/dev/null || true; systemctl is-active fail2ban 2>/dev/null || true; fail2ban-client status sshd 2>/dev/null || true; echo; echo 'Unattended upgrades:'; systemctl is-enabled unattended-upgrades 2>/dev/null || true"
 
 step 9 10 "Проверка отсутствия hardened-ограничений в активном конфиге"
-ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" "grep -niE 'squid|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|exec-approvals\\.json|tools\\.yaml|allowlist\\.txt|openclaw-squid|openclaw-litellm' ~/.openclaw/openclaw.json ~/.config/systemd/user/openclaw-gateway.service 2>/dev/null || true"
+ssh_openclaw_retry "grep -niE 'squid|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|exec-approvals\\.json|tools\\.yaml|allowlist\\.txt|openclaw-squid|openclaw-litellm' ~/.openclaw/openclaw.json ~/.config/systemd/user/openclaw-gateway.service 2>/dev/null || true"
 
 step 10 10 "Получение gateway token и завершение"
 GATEWAY_TOKEN="$(
-  ssh "${SSH_OPTS[@]}" "$OPENCLAW_CONN" \
+  ssh_openclaw_capture_retry \
     "export XDG_RUNTIME_DIR=/run/user/\$(id -u); export DBUS_SESSION_BUS_ADDRESS=unix:path=\$XDG_RUNTIME_DIR/bus; ~/.openclaw/bin/openclaw config get gateway.auth.token || true" \
-    2>/dev/null | tr -d '\r' | tail -n1
+    | tr -d '\r' | tail -n1
 )"
 if [[ -n "$GATEWAY_TOKEN" && "$GATEWAY_TOKEN" != "null" ]]; then
   ok "Gateway token / Токен gateway:"

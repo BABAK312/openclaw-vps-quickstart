@@ -7,20 +7,20 @@ One-command, security-first OpenClaw deployment on Ubuntu VPS.
 macOS / Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.30/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 Windows (WSL2):
 
 ```powershell
 wsl --install -d Ubuntu-24.04
-wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.30/install.sh | bash -s -- --host <VPS_IP>'
+wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>'
 ```
 
 If initial SSH user is not `root`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.30/install.sh | bash -s -- --host <VPS_IP> --initial-user <USER>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP> --initial-user <USER>
 ```
 
 ## What the Installer Configures
@@ -47,7 +47,7 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 Example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.30/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --extra-keys 1 --show-extra-private-keys --no-upgrade
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --extra-keys 1 --show-extra-private-keys --no-upgrade
 ```
 
 ## After Install
@@ -82,7 +82,7 @@ openclaw onboard
 Install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.30/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 Tunnel:
