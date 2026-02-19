@@ -13,6 +13,41 @@ Security-first OpenClaw setup for Ubuntu VPS in one command.
 curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host <VPS_IP>
 ```
 
+## 60-Second Flow
+
+1. Install on VPS (from your local machine):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host <VPS_IP>
+```
+
+2. Open SSH tunnel (new local terminal tab):
+
+```bash
+ssh -i ~/.ssh/openclaw_vps_ed25519 -N -L 18789:127.0.0.1:18789 openclaw@<VPS_IP>
+```
+
+3. Open Control UI locally: `http://127.0.0.1:18789`
+4. First-time setup on VPS:
+
+```bash
+ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP>
+openclaw onboard
+```
+
+5. Verify health:
+
+```bash
+./verify.sh --host <VPS_IP>
+```
+
+## Common Install Options
+
+- `--initial-user <USER>`: if your provider gives non-root initial SSH user.
+- `--extra-keys 1`: generate and add one extra SSH key for phone/tablet.
+- `--show-extra-private-keys`: print extra private key content in terminal/log (sensitive).
+- `--no-upgrade`: skip `apt upgrade` stage (faster rerun; OpenClaw setup still runs).
+
 ## What You Get
 
 - SSH key based access (password auth disabled by default).
@@ -20,6 +55,41 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 - Host hardening baseline: `UFW`, `Fail2ban`, `unattended-upgrades`.
 - OpenClaw gateway bound to loopback with token auth.
 - Verification and repair scripts for post-install diagnostics.
+
+## Important Paths
+
+Local machine:
+
+- `~/.ssh/openclaw_vps_ed25519` (main SSH private key)
+- `~/.ssh/openclaw_vps_extra_1_ed25519` (extra device private key, if requested)
+- `logs/bootstrap-<timestamp>.log`
+- `logs/extra-ssh-keys-<timestamp>.txt`
+
+VPS:
+
+- `/home/openclaw/.openclaw/openclaw.json` (OpenClaw config)
+- `/home/openclaw/.config/systemd/user/openclaw-gateway.service` (gateway service)
+
+## Day-2 Commands
+
+Update OpenClaw:
+
+```bash
+ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP> "~/.openclaw/bin/openclaw update status"
+ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP> "~/.openclaw/bin/openclaw update --yes"
+```
+
+Repair token mismatch:
+
+```bash
+./scripts/repair-token-mismatch.sh --host <VPS_IP>
+```
+
+Run quick smoke tests:
+
+```bash
+./scripts/smoke-test.sh --host <VPS_IP>
+```
 
 ## Repo Map
 
