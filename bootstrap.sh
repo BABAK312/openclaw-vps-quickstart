@@ -773,9 +773,13 @@ REMOTE_ATTEMPT=1
 REMOTE_ATTEMPT_MAX=2
 while true; do
   if run_remote_bootstrap_once; then
+    REMOTE_RC=0
+  else
+    REMOTE_RC=$?
+  fi
+  if (( REMOTE_RC == 0 )); then
     break
   fi
-  REMOTE_RC=$?
   if (( REMOTE_ATTEMPT >= REMOTE_ATTEMPT_MAX )); then
     fail "Remote bootstrap failed after ${REMOTE_ATTEMPT} attempt(s) with exit ${REMOTE_RC}."
   fi

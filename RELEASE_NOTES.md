@@ -1,5 +1,38 @@
 # Release Notes
 
+## v1.0.32
+
+### Installer automation
+- Added automatic reboot flow in `install.sh` when `/var/run/reboot-required` is present:
+  - sends reboot command
+  - waits for SSH to return
+  - runs final `verify` after reboot
+- Added reboot controls:
+  - `--no-auto-reboot`
+  - `--reboot-wait-timeout <seconds>` (default `420`)
+
+### Local UX improvements
+- Added optional short SSH alias setup from installer:
+  - `--ssh-alias <name>`
+  - writes/upserts managed `Host` block in local `~/.ssh/config`
+- Added short-command outputs at the end of install when alias is configured.
+
+### Single-repo behavior on local machine
+- Improved default repo directory detection in `install.sh`:
+  - if run from an existing quickstart working directory, use current directory by default
+  - avoids creating unintended duplicate clone at `~/openclaw-vps-quickstart`
+
+### Bootstrap reliability fix
+- Fixed remote bootstrap retry exit-code capture bug (`exit 0` false-positive path).
+
+### Docs/version sync
+- Bumped all public install snippets to `v1.0.32`:
+  - `README.md`
+  - `README_EN.md`
+  - `README_RU.md`
+  - `LANDING.md`
+- Updated docs with new flags and reboot behavior.
+
 ## v1.0.31
 
 ### Reliability fixes (installer/bootstrap/verify)

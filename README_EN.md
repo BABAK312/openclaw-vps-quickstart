@@ -7,20 +7,20 @@ One-command, security-first OpenClaw deployment on Ubuntu VPS.
 macOS / Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 Windows (WSL2):
 
 ```powershell
 wsl --install -d Ubuntu-24.04
-wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>'
+wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP>'
 ```
 
 If initial SSH user is not `root`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP> --initial-user <USER>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP> --initial-user <USER>
 ```
 
 ## What the Installer Configures
@@ -35,6 +35,7 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
   - Fail2ban `sshd` jail
   - unattended-upgrades
 - Installs/updates OpenClaw and configures gateway on loopback.
+- Auto-reboots once when `/var/run/reboot-required` exists, waits for SSH, then runs final verify.
 - Prints gateway token and quick UI URL.
 
 ## Useful Flags
@@ -43,11 +44,14 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 - `--extra-keys 1`: generate one extra device key (phone/tablet)
 - `--show-extra-private-keys`: print extra private key text in terminal (also saved in log; use carefully)
 - `--no-harden-ssh`: skip SSH hardening
+- `--ssh-alias <name>`: add short local SSH alias in `~/.ssh/config` (example: `openclaw-1`)
+- `--no-auto-reboot`: keep manual reboot mode
+- `--reboot-wait-timeout <seconds>`: override reboot wait timeout (default `420`)
 
 Example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --extra-keys 1 --show-extra-private-keys --no-upgrade
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --extra-keys 1 --show-extra-private-keys --ssh-alias openclaw-1
 ```
 
 ## After Install
@@ -69,6 +73,13 @@ ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP>
 openclaw onboard
 ```
 
+If you used `--ssh-alias`, connect with short command:
+
+```bash
+ssh openclaw-1
+ssh -N -L 18789:127.0.0.1:18789 openclaw-1
+```
+
 ## Verify / Repair
 
 ```bash
@@ -82,7 +93,7 @@ openclaw onboard
 Install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 Tunnel:
@@ -123,10 +134,13 @@ ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP> "~/.openclaw/bin/openclaw u
 ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP> "~/.openclaw/bin/openclaw update --yes"
 ```
 
-## Reboot (if required)
+## Reboot behavior
+
+- Default: installer auto-reboots once if required.
+- Manual mode: use `--no-auto-reboot`, then reboot yourself if needed:
 
 ```bash
-ssh -i ~/.ssh/openclaw_vps_ed25519 root@<VPS_IP> "reboot"
+ssh -i ~/.ssh/openclaw_vps_ed25519 root@<VPS_IP> "sudo reboot || reboot"
 ```
 
 ## Contacts

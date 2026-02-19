@@ -7,20 +7,20 @@
 macOS / Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 Windows (WSL2):
 
 ```powershell
 wsl --install -d Ubuntu-24.04
-wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>'
+wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP>'
 ```
 
 Если initial user не `root`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP> --initial-user <USER>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP> --initial-user <USER>
 ```
 
 ## Что настраивает установщик
@@ -35,6 +35,7 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
   - Fail2ban (`sshd`)
   - unattended-upgrades
 - Ставит/обновляет OpenClaw и настраивает gateway на loopback.
+- Если есть `/var/run/reboot-required`, автоматически делает один reboot, ждёт SSH и запускает финальную verify-проверку.
 - Выводит gateway token и быструю ссылку для UI.
 
 ## Полезные флаги
@@ -43,11 +44,14 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 - `--extra-keys 1`: сгенерировать дополнительный ключ для телефона/планшета
 - `--show-extra-private-keys`: вывести private key прямо в терминал (и в лог тоже; осторожно)
 - `--no-harden-ssh`: пропустить SSH hardening
+- `--ssh-alias <name>`: добавить короткий SSH alias в `~/.ssh/config` (пример: `openclaw-1`)
+- `--no-auto-reboot`: оставить ручной reboot-режим
+- `--reboot-wait-timeout <сек>`: изменить таймаут ожидания reboot (по умолчанию `420`)
 
 Пример:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --extra-keys 1 --show-extra-private-keys --no-upgrade
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --extra-keys 1 --show-extra-private-keys --ssh-alias openclaw-1
 ```
 
 ## После установки
@@ -69,6 +73,13 @@ ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP>
 openclaw onboard
 ```
 
+Если использовал `--ssh-alias`, подключение короткой командой:
+
+```bash
+ssh openclaw-1
+ssh -N -L 18789:127.0.0.1:18789 openclaw-1
+```
+
 ## Проверка и ремонт
 
 ```bash
@@ -82,7 +93,7 @@ openclaw onboard
 Установка:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 Туннель:
@@ -123,10 +134,13 @@ ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP> "~/.openclaw/bin/openclaw u
 ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP> "~/.openclaw/bin/openclaw update --yes"
 ```
 
-## Reboot (если требуется)
+## Поведение reboot
+
+- По умолчанию: установщик сам делает один reboot при необходимости.
+- Ручной режим: добавь `--no-auto-reboot`, затем перезагрузи вручную:
 
 ```bash
-ssh -i ~/.ssh/openclaw_vps_ed25519 root@<VPS_IP> "reboot"
+ssh -i ~/.ssh/openclaw_vps_ed25519 root@<VPS_IP> "sudo reboot || reboot"
 ```
 
 ## Контакты

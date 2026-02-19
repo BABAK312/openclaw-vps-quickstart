@@ -10,7 +10,7 @@ Security-first OpenClaw setup for Ubuntu VPS in one command.
 ## Quick Install (latest)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 ## 60-Second Flow
@@ -18,7 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 1. Install on VPS (from your local machine):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.31/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.32/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 2. Open SSH tunnel (new local terminal tab):
@@ -47,6 +47,8 @@ openclaw onboard
 - `--extra-keys 1`: generate and add one extra SSH key for phone/tablet.
 - `--show-extra-private-keys`: print extra private key content in terminal/log (sensitive).
 - `--no-upgrade`: skip `apt upgrade` stage (faster rerun; OpenClaw setup still runs).
+- `--ssh-alias <NAME>`: add short SSH alias in local `~/.ssh/config`.
+- `--no-auto-reboot`: disable automatic reboot when reboot-required is detected.
 
 ## What You Get
 
@@ -54,6 +56,7 @@ openclaw onboard
 - Dedicated non-root user: `openclaw`.
 - Host hardening baseline: `UFW`, `Fail2ban`, `unattended-upgrades`.
 - OpenClaw gateway bound to loopback with token auth.
+- Automatic reboot (if required) with SSH wait + post-reboot verify.
 - Verification and repair scripts for post-install diagnostics.
 
 ## Important Paths
