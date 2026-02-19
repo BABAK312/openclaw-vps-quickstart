@@ -1,5 +1,19 @@
 # Release Notes
 
+## v1.0.30
+
+### Docs/version sync
+- Bumped all public install snippets to `v1.0.30`:
+  - `README.md`
+  - `README_EN.md`
+  - `README_RU.md`
+  - `LANDING.md`
+- Expanded root `README.md` quickstart flow for first-time users:
+  - 60-second install path
+  - common flags
+  - important paths
+  - day-2 operations
+
 ## v1.0.29
 
 ### Documentation upgrade
