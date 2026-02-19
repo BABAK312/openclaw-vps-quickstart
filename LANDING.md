@@ -73,14 +73,14 @@ OpenClaw — это AI-агент (как Claude Code или Cursor), но ра�
 Открой терминал и введи:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.28/install.sh | bash -s -- --host ТВОЙ_IP
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host ТВОЙ_IP
 ```
 
 ### Windows (WSL2)
 
 ```powershell
 wsl --install -d Ubuntu-24.04
-wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.28/install.sh | bash -s -- --host ТВОЙ_IP'
+wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host ТВОЙ_IP'
 ```
 
 ---
@@ -317,7 +317,7 @@ A: Да. Если не понравится — возврат в течение
 **Одна команда — и у тебя есть AI-ассистент, который работает 24/7.**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.28/install.sh | bash -s -- --host ТВОЙ_IP
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host ТВОЙ_IP
 ```
 
 **Вопросы? Пиши в Telegram: [@твой_бот]**
@@ -361,7 +361,7 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 
 **Бесплатно:** Скопируй команду и установи OpenClaw
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.28/install.sh | bash -s -- --host ТВОЙ_IP
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host ТВОЙ_IP
 ```
 
 **PRO:** Вступи в Lobster Pro — безлимит AI + готовые решения

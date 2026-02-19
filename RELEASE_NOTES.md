@@ -1,28 +1,25 @@
 # Release Notes
 
-## v1.0.28
+## v1.0.29
+
+### Documentation upgrade
+- Expanded docs for better first-time onboarding.
+- Added bilingual structure:
+  - `README.md` (entrypoint)
+  - `README_EN.md`
+  - `README_RU.md`
+- Added clear sections:
+  - what installer configures
+  - command cheat sheet
+  - post-install and repair flow
+- Updated all install snippets to `v1.0.29`.
+
+### Script baseline
+- Kept hardened installer/bootstrap flow and diagnostics stack.
+- Kept mobile extra-key UX (`--extra-keys`) and optional key-print mode (`--show-extra-private-keys`).
+- Normalized helper script defaults to `~/.ssh/openclaw_vps_ed25519`.
 
 ### Repo hygiene
-- Synced repository to current GitHub main state with a new clean release line.
-- Added bilingual docs entrypoint and separated English/Russian READMEs.
-- Updated install examples to `v1.0.28`.
-
-### Installer & security baseline
-- Restored hardened installer/bootstrap flow:
-  - SSH key onboarding with safe validation
-  - Dedicated `openclaw` user setup
-  - UFW + Fail2ban + unattended-upgrades checks
-  - Gateway loopback + token auth repair flow
-- Restored verification and repair scripts used in production tests.
-
-### Device keys / mobile UX
-- Kept optional extra SSH keys workflow (`--extra-keys`).
-- Added optional private-key terminal print mode (`--show-extra-private-keys`) with explicit warnings.
-
-### Docs / branding
-- Added Lobster references in a GitHub-friendly way.
-- Added contact links (Telegram + GitHub Issues).
-- Updated `LANDING.md` command snippets to latest tag and corrected Windows flow to WSL2.
-
-### Legal
-- Added explicit `LICENSE` file (`All Rights Reserved`).
+- Updated `LANDING.md` command snippets and Windows flow (WSL2).
+- Kept Lobster contacts in a GitHub-friendly format.
+- Preserved explicit legal notice (`LICENSE`, All Rights Reserved).

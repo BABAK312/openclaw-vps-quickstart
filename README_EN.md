@@ -7,21 +7,35 @@ One-command, security-first OpenClaw deployment on Ubuntu VPS.
 macOS / Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.28/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host <VPS_IP>
 ```
 
 Windows (WSL2):
 
 ```powershell
 wsl --install -d Ubuntu-24.04
-wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.28/install.sh | bash -s -- --host <VPS_IP>'
+wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host <VPS_IP>'
 ```
 
 If initial SSH user is not `root`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.28/install.sh | bash -s -- --host <VPS_IP> --initial-user <USER>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host <VPS_IP> --initial-user <USER>
 ```
+
+## What the Installer Configures
+
+- Creates/reuses local key: `~/.ssh/openclaw_vps_ed25519`.
+- Copies key to initial VPS user and validates key-only access.
+- Creates service user `openclaw`.
+- Enables hardening defaults:
+  - `PasswordAuthentication no`
+  - `PubkeyAuthentication yes`
+  - UFW incoming deny + SSH allow
+  - Fail2ban `sshd` jail
+  - unattended-upgrades
+- Installs/updates OpenClaw and configures gateway on loopback.
+- Prints gateway token and quick UI URL.
 
 ## Useful Flags
 
@@ -33,7 +47,7 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 Example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.28/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --extra-keys 1 --show-extra-private-keys --no-upgrade
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --extra-keys 1 --show-extra-private-keys --no-upgrade
 ```
 
 ## After Install
@@ -61,6 +75,32 @@ openclaw onboard
 ./verify.sh --host <VPS_IP>
 ./scripts/smoke-test.sh --host <VPS_IP>
 ./verify.sh --host <VPS_IP> --repair
+```
+
+## Command Cheat Sheet
+
+Install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.29/install.sh | bash -s -- --host <VPS_IP>
+```
+
+Tunnel:
+
+```bash
+ssh -i ~/.ssh/openclaw_vps_ed25519 -N -L 18789:127.0.0.1:18789 openclaw@<VPS_IP>
+```
+
+Verify:
+
+```bash
+./verify.sh --host <VPS_IP>
+```
+
+Repair:
+
+```bash
+./scripts/repair-token-mismatch.sh --host <VPS_IP>
 ```
 
 ## Phone Access (Termius)
@@ -93,3 +133,7 @@ ssh -i ~/.ssh/openclaw_vps_ed25519 root@<VPS_IP> "reboot"
 
 - Telegram (Lobster): https://t.me/+MofnVybrWDU4YTRl
 - GitHub Issues: https://github.com/BABAK312/openclaw-vps-quickstart/issues
+
+## License
+
+See [LICENSE](LICENSE). All rights reserved.
