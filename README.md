@@ -114,11 +114,12 @@ Run quick smoke tests:
 - `scripts/tunnel.sh`: local SSH tunnel helper for Control UI.
 - `scripts/connect.sh`: SSH connect helper.
 - `scripts/get-token.sh`: fetch gateway token from VPS.
-- `LANDING.md`: long-form landing content.
+- `LANDING.md`: legacy long-form landing draft.
 
 ## Project Links
 
-- Landing content: [LANDING.md](LANDING.md)
+- Live landing (visual guide + Lobster Club): https://lobster-openclaw-landing.vercel.app
+- Legacy landing draft: [LANDING.md](LANDING.md)
 - Issues: https://github.com/BABAK312/openclaw-vps-quickstart/issues
 - Telegram (Lobster): https://t.me/+MofnVybrWDU4YTRl
 

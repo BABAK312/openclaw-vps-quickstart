@@ -415,18 +415,31 @@ if [[ -n "$SSH_ALIAS" ]]; then
 fi
 
 printf '\nDone.\n'
-ok "Установка завершена."
-printf '1) Open tunnel:\n'
+ok "Installation complete / Установка завершена."
+
 if [[ -n "$SSH_ALIAS" ]]; then
-  printf '   ssh -N -L 18789:127.0.0.1:18789 %s\n' "$SSH_ALIAS"
+  CONNECT_CMD="ssh ${SSH_ALIAS}"
+  TUNNEL_CMD="ssh -N -L 18789:127.0.0.1:18789 ${SSH_ALIAS}"
 else
-  printf '   ssh -i %s -N -L 18789:127.0.0.1:18789 %s@%s\n' "$SSH_KEY" "$OPENCLAW_USER" "$HOST"
+  CONNECT_CMD="ssh -i ${SSH_KEY} ${OPENCLAW_USER}@${HOST}"
+  TUNNEL_CMD="ssh -i ${SSH_KEY} -N -L 18789:127.0.0.1:18789 ${OPENCLAW_USER}@${HOST}"
 fi
-printf '2) Open dashboard in private window: http://127.0.0.1:18789\n'
-if [[ -n "$SSH_ALIAS" ]]; then
-  printf '3) SSH to VPS: ssh %s\n' "$SSH_ALIAS"
-  printf '4) If needed run on VPS: ~/.openclaw/bin/openclaw onboard\n'
-else
-  printf '3) If needed run on VPS: ~/.openclaw/bin/openclaw onboard\n'
+
+printf '1) Open dashboard tunnel (Туннель до дашборда):\n'
+printf '   %s\n' "$TUNNEL_CMD"
+printf '2) Open dashboard URL (Открыть дашборд):\n'
+printf '   http://127.0.0.1:18789\n'
+printf '3) Connect to VPS shell (Подключиться к VPS):\n'
+printf '   %s\n' "$CONNECT_CMD"
+printf '4) Onboarding on VPS (Первичная настройка на VPS):\n'
+printf '   openclaw onboard\n'
+printf '5) Gateway commands on VPS (Команды gateway на VPS):\n'
+printf '   openclaw gateway status\n'
+printf '   openclaw gateway start\n'
+printf '   openclaw gateway restart\n'
+printf '   openclaw gateway stop\n'
+if [[ -z "$SSH_ALIAS" ]]; then
+  printf '6) Optional short SSH alias (Короткий SSH alias, опционально):\n'
+  printf '   Re-run install with: --ssh-alias openclaw-1\n'
 fi
 printf 'Install log: %s\n' "$LOG_FILE"

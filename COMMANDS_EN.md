@@ -149,6 +149,18 @@ openclaw update status
 openclaw update --yes
 ```
 
+## 5.1) Systemd service (advanced, user service)
+
+OpenClaw gateway is installed as a **user** service, not a root system service.
+
+```bash
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
+systemctl --user status openclaw-gateway.service
+systemctl --user restart openclaw-gateway.service
+journalctl --user -u openclaw-gateway.service -f
+```
+
 ## 6) Verification and repair (local quickstart repo)
 
 Health check:
@@ -225,3 +237,24 @@ Remove alias block manually:
 - Delete lines between:
   - `# >>> openclaw-vps-quickstart alias <NAME> >>>`
   - `# <<< openclaw-vps-quickstart alias <NAME> <<<`
+
+## 11) Common issues (quick fixes)
+
+Gateway already running:
+
+```bash
+openclaw gateway stop
+openclaw gateway start
+```
+
+Unauthorized / token mismatch:
+
+```bash
+./scripts/repair-token-mismatch.sh --host <VPS_IP>
+```
+
+SSH warning `REMOTE HOST IDENTIFICATION HAS CHANGED` (local Mac/Linux):
+
+```bash
+ssh-keygen -R <VPS_IP>
+```

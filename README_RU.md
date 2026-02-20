@@ -90,6 +90,13 @@ ssh openclaw-1
 ssh -N -L 18789:127.0.0.1:18789 openclaw-1
 ```
 
+В финальном выводе установщика теперь печатаются готовые команды (EN + RU):
+- туннель
+- URL дашборда
+- SSH-подключение
+- onboarding
+- gateway status/start/restart/stop
+
 ## Проверка и ремонт
 
 ```bash
@@ -155,6 +162,7 @@ ssh -i ~/.ssh/openclaw_vps_ed25519 root@<VPS_IP> "sudo reboot || reboot"
 
 ## Контакты
 
+- Живой лендинг (подробный гайд с картинками + Lobster Club): https://lobster-openclaw-landing.vercel.app
 - Telegram (Lobster): https://t.me/+MofnVybrWDU4YTRl
 - GitHub Issues: https://github.com/BABAK312/openclaw-vps-quickstart/issues
 

@@ -148,6 +148,18 @@ openclaw update status
 openclaw update --yes
 ```
 
+## 5.1) Systemd service (продвинутый режим, user-service)
+
+Gateway OpenClaw ставится как **пользовательский** сервис, а не системный root-сервис.
+
+```bash
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
+systemctl --user status openclaw-gateway.service
+systemctl --user restart openclaw-gateway.service
+journalctl --user -u openclaw-gateway.service -f
+```
+
 ## 6) Проверка и ремонт (из локального quickstart)
 
 Проверка:
@@ -224,3 +236,24 @@ cat ~/.ssh/config
 - Удалить строки между:
   - `# >>> openclaw-vps-quickstart alias <NAME> >>>`
   - `# <<< openclaw-vps-quickstart alias <NAME> <<<`
+
+## 11) Частые проблемы (быстрые фиксы)
+
+Gateway уже запущен:
+
+```bash
+openclaw gateway stop
+openclaw gateway start
+```
+
+Unauthorized / token mismatch:
+
+```bash
+./scripts/repair-token-mismatch.sh --host <VPS_IP>
+```
+
+Ошибка SSH `REMOTE HOST IDENTIFICATION HAS CHANGED` (локально на Mac/Linux):
+
+```bash
+ssh-keygen -R <VPS_IP>
+```
