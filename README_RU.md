@@ -8,6 +8,12 @@
 
 ## Быстрый старт
 
+Рекомендуется (короткий alias + авто-reboot по умолчанию):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --ssh-alias openclaw-1
+```
+
 macOS / Linux:
 
 ```bash
@@ -18,7 +24,7 @@ Windows (WSL2):
 
 ```powershell
 wsl --install -d Ubuntu-24.04
-wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | bash -s -- --host <VPS_IP>'
+wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --ssh-alias openclaw-1'
 ```
 
 Если initial user не `root`:
@@ -66,9 +72,24 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 
 ## После установки
 
-Поднять туннель:
+Рекомендуемое быстрое подключение к серверу (через alias):
 
 ```bash
+ssh openclaw-1
+```
+
+Это короткое локальное имя в `~/.ssh/config`; вход идёт по ключу (без запроса пароля).
+
+Поднять туннель (рекомендуется через alias):
+
+```bash
+ssh -N -L 18789:127.0.0.1:18789 openclaw-1
+```
+
+Полные команды без alias:
+
+```bash
+ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP>
 ssh -i ~/.ssh/openclaw_vps_ed25519 -N -L 18789:127.0.0.1:18789 openclaw@<VPS_IP>
 ```
 
@@ -79,15 +100,7 @@ ssh -i ~/.ssh/openclaw_vps_ed25519 -N -L 18789:127.0.0.1:18789 openclaw@<VPS_IP>
 Первичная настройка моделей/каналов:
 
 ```bash
-ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP>
 openclaw onboard
-```
-
-Если использовал `--ssh-alias`, подключение короткой командой:
-
-```bash
-ssh openclaw-1
-ssh -N -L 18789:127.0.0.1:18789 openclaw-1
 ```
 
 В финальном выводе установщика теперь печатаются готовые команды (EN + RU):
@@ -110,7 +123,7 @@ ssh -N -L 18789:127.0.0.1:18789 openclaw-1
 Установка:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --ssh-alias openclaw-1
 ```
 
 Туннель:

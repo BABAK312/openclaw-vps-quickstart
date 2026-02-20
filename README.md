@@ -12,7 +12,7 @@ Security-first OpenClaw setup for Ubuntu VPS in one command.
 ## Quick Install (latest)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --ssh-alias openclaw-1
 ```
 
 ## 60-Second Flow
@@ -20,24 +20,35 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 1. Install on VPS (from your local machine):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --ssh-alias openclaw-1
 ```
 
-2. Open SSH tunnel (new local terminal tab):
+2. Connect to VPS quickly (no password):
+
+```bash
+ssh openclaw-1
+```
+
+3. Open SSH tunnel (new local terminal tab):
+
+```bash
+ssh -N -L 18789:127.0.0.1:18789 openclaw-1
+```
+
+Full tunnel command without alias:
 
 ```bash
 ssh -i ~/.ssh/openclaw_vps_ed25519 -N -L 18789:127.0.0.1:18789 openclaw@<VPS_IP>
 ```
 
-3. Open Control UI locally: `http://127.0.0.1:18789`
-4. First-time setup on VPS:
+4. Open Control UI locally: `http://127.0.0.1:18789`
+5. First-time setup on VPS:
 
 ```bash
-ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP>
 openclaw onboard
 ```
 
-5. Verify health:
+6. Verify health:
 
 ```bash
 ./verify.sh --host <VPS_IP>

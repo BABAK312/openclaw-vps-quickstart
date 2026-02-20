@@ -8,6 +8,12 @@ Full command reference:
 
 ## Quick Start
 
+Recommended (short alias + auto-reboot by default):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --ssh-alias openclaw-1
+```
+
 macOS / Linux:
 
 ```bash
@@ -18,7 +24,7 @@ Windows (WSL2):
 
 ```powershell
 wsl --install -d Ubuntu-24.04
-wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | bash -s -- --host <VPS_IP>'
+wsl -d Ubuntu-24.04 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --ssh-alias openclaw-1'
 ```
 
 If initial SSH user is not `root`:
@@ -66,9 +72,24 @@ curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1
 
 ## After Install
 
-Create tunnel:
+Recommended quick SSH login (via alias):
 
 ```bash
+ssh openclaw-1
+```
+
+This is a short local alias in `~/.ssh/config`; it connects with your key (no password prompts).
+
+Create tunnel (recommended alias form):
+
+```bash
+ssh -N -L 18789:127.0.0.1:18789 openclaw-1
+```
+
+Full commands without alias:
+
+```bash
+ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP>
 ssh -i ~/.ssh/openclaw_vps_ed25519 -N -L 18789:127.0.0.1:18789 openclaw@<VPS_IP>
 ```
 
@@ -79,15 +100,7 @@ Open Control UI:
 Initial provider/channel onboarding:
 
 ```bash
-ssh -i ~/.ssh/openclaw_vps_ed25519 openclaw@<VPS_IP>
 openclaw onboard
-```
-
-If you used `--ssh-alias`, connect with short command:
-
-```bash
-ssh openclaw-1
-ssh -N -L 18789:127.0.0.1:18789 openclaw-1
 ```
 
 Installer final output includes copy-ready commands (EN + RU) for:
@@ -110,7 +123,7 @@ Installer final output includes copy-ready commands (EN + RU) for:
 Install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | bash -s -- --host <VPS_IP>
+curl -fsSL https://raw.githubusercontent.com/BABAK312/openclaw-vps-quickstart/v1.0.33/install.sh | FORCE_COLOR=1 bash -s -- --host <VPS_IP> --ssh-alias openclaw-1
 ```
 
 Tunnel:
