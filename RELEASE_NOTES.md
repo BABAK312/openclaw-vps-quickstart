@@ -1,5 +1,37 @@
 # Release Notes
 
+## v1.0.33
+
+### Installer output UX
+- Improved final `install.sh` output with copy-ready commands in English + Russian:
+  - dashboard tunnel
+  - dashboard URL
+  - SSH connect command
+  - onboarding command
+  - gateway status/start/restart/stop
+- Added explicit hint when no alias is configured:
+  - re-run with `--ssh-alias openclaw-1`
+
+### Command docs expansion
+- Added and expanded command references:
+  - `COMMANDS_EN.md`
+  - `COMMANDS_RU.md`
+- Added user-service systemd commands (`systemctl --user`) and quick common-fix section.
+
+### Public links/docs
+- Added live landing link to README files:
+  - `https://lobster-openclaw-landing.vercel.app`
+- Marked `LANDING.md` as legacy draft with pointer to live landing.
+
+### Docs/version sync
+- Bumped public install snippets to `v1.0.33`:
+  - `README.md`
+  - `README_EN.md`
+  - `README_RU.md`
+  - `LANDING.md`
+  - `COMMANDS_EN.md`
+  - `COMMANDS_RU.md`
+
 ## v1.0.32
 
 ### Installer automation
